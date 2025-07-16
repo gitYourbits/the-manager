@@ -1,0 +1,59 @@
+version: '3.9'
+
+services:
+  # Vector Database for RAG functionality
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: always
+    ports:
+      - '6333:6333'
+      - '6334:6334'
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+
+  # Django Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - '8000:8000'
+    volumes:
+      - ./backend:/app
+      - backend_data:/app/media
+    env_file:
+      - ./backend/.env
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - DEBUG=True
+    depends_on:
+      - qdrant
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  # Streamlit Frontend
+  frontend:
+    build:
+      context: ./st_frontend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - '8501:8501'
+    volumes:
+      - ./st_frontend:/app
+    env_file:
+      - ./backend/.env
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    command: streamlit run main.py --server.port 8501 --server.address 0.0.0.0
+
+volumes:
+  qdrant_data:
+  backend_data: 

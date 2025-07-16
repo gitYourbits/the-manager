@@ -1,0 +1,36 @@
+# Environment variables
+.env
+
+# Database
+db.sqlite3
+db.sqlite3-journal
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+
+# IDE files (if they exist)
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Media files (if they exist)
+media/
+
+# Static files (if they exist)
+static/
+
+# Logs (if they exist)
+*.log
+
+# Local settings (if they exist)
+local_settings.py
