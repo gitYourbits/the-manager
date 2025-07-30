@@ -31,6 +31,10 @@ static/
 
 # Logs (if they exist)
 *.log
+logs/
 
 # Local settings (if they exist)
 local_settings.py
+
+personal_kb/
+global_kb/

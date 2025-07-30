@@ -1,4 +1,142 @@
-# 🎵 AI Manager - Music Artist Assistant
+# AI Manager
+
+**Empowering Music Artists and Professionals with Robust AI-Driven Knowledge & Strategy**
+
+---
+
+## 🚀 Vision & Goals
+
+- **Personal Manager Persona:** Provide each user with an AI assistant that blends personal knowledge (uploaded docs, notes, history) and global industry intelligence for world-class advice.
+- **Robust, Scalable RAG:** Use the latest retrieval-augmented generation (RAG) techniques for context-aware, accurate, and explainable answers.
+- **Hybrid Semantic Search:** Maximize recall and relevance by combining multiple embedding models and knowledge bases.
+- **Privacy & Security:** Strictly isolate personal data and audit all knowledge access.
+- **Observability:** Maintain full traceability and logging for all retrieval and reasoning steps.
+
+---
+
+## 🧠 System Overview
+
+### Core Components
+- **Backend (Python):** Orchestrates ingestion, semantic search, intent classification, context retrieval, and LLM prompt construction.
+- **Frontend (Streamlit):** Modern, responsive UI for document upload, chat, and analytics.
+- **Qdrant Vector DB:** Stores all chunked knowledge with embeddings from multiple models.
+- **OpenAI API:** Provides embeddings and LLM completions.
+
+---
+
+## 🔎 Hybrid Retriever: How & Why
+
+### **Knowledge Bases (KBs):**
+- **Personal KB:** User-specific docs, only accessible by that user (filtered by `user_id`).
+- **Global KB:** Industry-wide docs, best practices, and general info (never filtered by `user_id`).
+
+### **Hybrid Multi-Embedding Search:**
+- For every query, generate embeddings using:
+  - OpenAI (`text-embedding-3-small`)
+  - BGE (`bge-base-en-v1.5`)
+  - B2M5
+- Query Qdrant for each embedding across all relevant KBs.
+- Merge and deduplicate results by chunk.
+- Rerank with LLM for final context selection.
+
+### **KB Targeting Logic:**
+| Query Intent | KBs Targeted         | Filtered by user_id? | Why?                                 |
+|--------------|---------------------|----------------------|--------------------------------------|
+| personal     | personal, global    | personal only        | Personalization + industry context   |
+| global       | global              | never                | Industry context only                |
+| hybrid       | personal, global    | personal only        | Both personal and industry blended   |
+
+- **Personal KB**: Only if query is personal/hybrid **and** user is authenticated.
+- **Global KB**: Always targeted for every query.
+
+---
+
+## 🛠️ System Workflow (Mermaid Diagram)
+
+```mermaid
+flowchart TD
+    A[User Query] --> B{Intent Classification}\n(LLM + fallback)
+    B -->|personal| C1[Embed Query (all models)]
+    B -->|global| C2[Embed Query (all models)]
+    B -->|hybrid| C3[Embed Query (all models)]
+    C1 --> D1[Search Personal KB (all models)\nfilter by user_id]
+    C1 --> D2[Search Global KB (all models)]
+    C2 --> D3[Search Global KB (all models)]
+    C3 --> D4[Search Personal KB (all models)\nfilter by user_id]
+    C3 --> D5[Search Global KB (all models)]
+    D1 & D2 --> E1[Merge + Deduplicate]
+    D3 --> E2[Deduplicate]
+    D4 & D5 --> E3[Merge + Deduplicate]
+    E1 & E2 & E3 --> F[LLM Rerank]
+    F --> G[Build Prompt]
+    G --> H[LLM Completion]
+    H --> I[Response]
+```
+
+---
+
+## 🧩 Implementation Details
+
+### Ingestion
+- Chunk documents using token overlap.
+- Generate and store embeddings for all supported models.
+- Store in Qdrant with appropriate KB and user_id.
+
+### Retrieval
+- Classify query intent (LLM-based, fallback to keywords).
+- For each embedding model, search all relevant KBs.
+- Merge/deduplicate results.
+- Rerank with LLM.
+- Build prompt with clear context source separation.
+
+### Security & Privacy
+- Personal KBs are always filtered by user_id.
+- Global KBs are never filtered by user_id.
+- All access and retrievals are logged.
+- No sensitive data in logs.
+
+### Logging & Observability
+- Structured logs to `logs/ai_manager.log` (see `logging.conf`).
+- All major retrieval, classification, and LLM steps logged.
+- Errors and fallbacks are traceable.
+
+### Deployment & Setup
+- Requires Python 3.10+, Docker, and Docker Compose.
+- Environment variables:
+  - `OPENAI_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION`
+- Start with: `docker-compose up --build`
+- Frontend at `localhost:8501`, backend at `localhost:8000`
+
+### Test Cases & Quality
+- Test classification, retrieval, reranking, and ingestion.
+- Example:
+  - `test_classify_intent`: Ensures correct intent detection.
+  - `test_retrieve_context`: Ensures correct KB targeting and context retrieval.
+  - `test_prompt_building`: Ensures context is separated and prompt is well-formed.
+- Use Django test runner: `docker-compose exec backend python manage.py test`
+
+---
+
+## 🏆 Alignment with Vision
+- **Personalization:** Each user gets tailored, private, and industry-aware answers.
+- **Robustness:** Hybrid search ensures no relevant context is missed.
+- **Transparency:** All KB targeting and context selection is explainable and logged.
+- **Scalability:** Modular, multi-KB, multi-embedding design supports future growth.
+- **Maintainability:** All logic and workflows are documented and testable.
+
+---
+
+## 📚 Onboarding Checklist
+- Clone repo, set up `.env` with required keys.
+- Ingest your documents (re-ingest if upgrading to hybrid search).
+- Start all services with Docker Compose.
+- Use the chat and analytics dashboard.
+- Review logs for troubleshooting.
+
+---
+
+For further details, see code comments and logging output. For any questions, open an issue or contact the maintainer.
+
 
 ## 🎯 Project Vision
 
@@ -452,43 +590,6 @@ docker-compose -f docker-compose.prod.yml up -d
 - **Team Building**: "What team members should I hire next?"
 - **Market Analysis**: "What opportunities exist in emerging markets?"
 
-### 🏢 Music Industry Professionals
-
-#### Workflow: Comprehensive Industry Intelligence
-1. **Industry Data Collection**
-   - Upload market research reports and industry analysis
-   - Add company profiles and competitive intelligence
-   - Include regulatory information and legal documents
-   - Document industry trends and technological developments
-
-2. **Strategic Analysis**
-   - AI chat: "Analyze the current state of the music industry"
-   - Get comprehensive market insights and trend analysis
-   - Identify opportunities and threats in the industry
-   - Develop strategic recommendations for business decisions
-
-3. **Decision Support**
-   - Use AI for investment decisions and business planning
-   - Get recommendations for partnerships and acquisitions
-   - Analyze market positioning and competitive advantages
-   - Develop long-term strategic roadmaps
-
-4. **Innovation Tracking**
-   - Monitor emerging technologies and business models
-   - Identify disruptive trends and adaptation strategies
-   - Track regulatory changes and compliance requirements
-   - Develop future-proof business strategies
-
-#### Use Cases:
-- **Market Analysis**: "What are the key trends in music streaming?"
-- **Investment Decisions**: "Should we invest in this new technology?"
-- **Strategic Planning**: "How should we position our company for the future?"
-- **Competitive Intelligence**: "What are our competitors doing?"
-
-## 🔧 System Features & Usage
-
-### 📚 Knowledge Management
-- **Personal Knowledgebase**: Upload and manage your own documents
 - **Global Knowledgebase**: Access industry-wide information
 - **Document Types**: Support for TXT, PDF, and DOCX files
 - **Semantic Search**: AI-powered search through your documents

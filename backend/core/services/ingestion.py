@@ -27,9 +27,22 @@ def chunk_text_token_overlap(text: str, max_tokens: int = 512, overlap: int = 64
     return chunks
 
 # --- Embedding utility ---
-def embed_text(texts: List[str], model: str = 'text-embedding-3-small') -> List[List[float]]:
-    response = openai.embeddings.create(input=texts, model=model)
-    return [d['embedding'] for d in response['data']]
+def embed_text(texts: List[str], models: List[str] = ['text-embedding-3-small', 'bge-base-en-v1.5', 'b2m5']) -> List[List[List[float]]]:
+    embeddings = []
+    for model in models:
+        if model.startswith('text-embedding'):
+            response = openai.embeddings.create(input=texts, model=model)
+            embeddings.append([d.embedding for d in response.data])
+        else:
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            tokenizer = AutoTokenizer.from_pretrained(model)
+            model = AutoModel.from_pretrained(model)
+            model.to(device)
+            inputs = tokenizer(texts, return_tensors='pt', padding=True, truncation=True)
+            with torch.no_grad():
+                outputs = model(**inputs.to(device))
+                embeddings.append(outputs.pooler_output.detach().cpu().numpy().tolist())
+    return list(map(list, zip(*embeddings)))
 
 # --- File extraction utilities ---
 def extract_text_from_pdf(file_field) -> str:
@@ -66,13 +79,13 @@ def ingest_document(file_field, file_type: str, doc_metadata: Dict = None, user_
             'chunk_index': chunk['chunk_index'],
             'start_token': chunk['start_token'],
             'end_token': chunk['end_token'],
-            'is_global': is_global
+            'is_global': is_global,
+            'embeddings': embedding
         }
         if user_id is not None:
             meta['user_id'] = user_id
         results.append({
             'chunk': chunk['chunk'],
-            'embedding': embedding,
             'metadata': meta
         })
-    return results 
+    return results
