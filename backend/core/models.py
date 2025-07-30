@@ -1,6 +1,8 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.contrib.postgres.fields import JSONField
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 
 # Create your models here.
 
@@ -27,6 +29,13 @@ class GlobalKnowledgeDocument(models.Model):
     def __str__(self):
         return self.title
 
+# Signal to delete Qdrant vectors when global doc is deleted
+@receiver(post_delete, sender=GlobalKnowledgeDocument)
+def delete_global_vectors(sender, instance, **kwargs):
+    from .services.qdrant_client import delete_vectors_by_doc_id
+    if instance.id:
+        delete_vectors_by_doc_id(str(instance.id), collection='global_kb')
+
 class PersonalKnowledgeDocument(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='personal_documents')
     title = models.CharField(max_length=255)
@@ -38,6 +47,13 @@ class PersonalKnowledgeDocument(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.owner.email})"
+
+# Signal to delete Qdrant vectors when personal doc is deleted
+@receiver(post_delete, sender=PersonalKnowledgeDocument)
+def delete_personal_vectors(sender, instance, **kwargs):
+    from .services.qdrant_client import delete_vectors_by_doc_id
+    if instance.id:
+        delete_vectors_by_doc_id(str(instance.id), collection='personal_kb')
 
 class Conversation(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='conversations')

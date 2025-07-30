@@ -53,7 +53,7 @@ def render():
                             'file_type': uploaded_file.name.split('.')[-1]
                         }
                         response = requests.post(
-                            "http://localhost:8000/api/auth/personal-kb/",
+                            "http://localhost:8000/api/personal-kb/",
                             headers={"Authorization": f"Bearer {st.session_state.token}"},
                             files=files,
                             data=data
@@ -71,7 +71,7 @@ def render():
         
         try:
             response = requests.get(
-                "http://localhost:8000/api/auth/personal-kb/",
+                "http://localhost:8000/api/personal-kb/",
                 headers={"Authorization": f"Bearer {st.session_state.token}"}
             )
             if response.status_code == 200:
@@ -93,7 +93,7 @@ def render():
                             if create_action_button("Delete", "🗑️", f"del_personal_{doc['id']}"):
                                 try:
                                     del_response = requests.delete(
-                                        f"http://localhost:8000/api/auth/personal-kb/{doc['id']}/",
+                                        f"http://localhost:8000/api/personal-kb/{doc['id']}/",
                                         headers={"Authorization": f"Bearer {st.session_state.token}"}
                                     )
                                     if del_response.status_code == 204:
@@ -130,7 +130,7 @@ def render():
                 try:
                     with st.spinner("Searching your knowledgebase..."):
                         response = requests.post(
-                            "http://localhost:8000/api/auth/personal-kb/search/",
+                            "http://localhost:8000/api/personal-kb/search/",
                             headers={"Authorization": f"Bearer {st.session_state.token}"},
                             json={"query": search_query}
                         )
@@ -163,7 +163,7 @@ def render():
         # List global documents (read-only for regular users)
         try:
             response = requests.get(
-                "http://localhost:8000/api/auth/global-kb/",
+                "http://localhost:8000/api/global-kb/",
                 headers={"Authorization": f"Bearer {st.session_state.token}"}
             )
             if response.status_code == 200:
@@ -208,7 +208,7 @@ def render():
                 try:
                     with st.spinner("Searching global knowledgebase..."):
                         response = requests.post(
-                            "http://localhost:8000/api/auth/global-kb/search/",
+                            "http://localhost:8000/api/global-kb/search/",
                             json={"query": global_search_query}
                         )
                         if response.status_code == 200:

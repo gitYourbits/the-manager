@@ -14,31 +14,65 @@ def read_file_content(file_field):
 def ingest_global_kb(sender, instance, created, **kwargs):
     if not created:
         return
-    vectors = ingest_document(
+    import logging
+    logger = logging.getLogger('ai_manager')
+    chunks = ingest_document(
         instance.file,
         instance.file_type,
         doc_metadata={
-            'document_id': instance.id,
+            'doc_id': instance.id,
             'title': instance.title,
             'file_type': instance.file_type
         },
         is_global=True
     )
-    upsert_vectors(vectors, collection='global_kb')
+    qdrant_vectors = []
+    skipped_chunks = 0
+    for c in chunks:
+        embeddings = c['metadata'].get('embeddings', [])
+        if not embeddings or not isinstance(embeddings, list) or len(embeddings) == 0 or embeddings[0] is None:
+            
+            skipped_chunks += 1
+            continue
+        qdrant_vectors.append({
+            'embedding': embeddings[0],
+            'chunk': c['chunk'],
+            'metadata': c['metadata']
+        })
+    if not qdrant_vectors:
+        return
+    upsert_vectors(qdrant_vectors, collection='global_kb')
 
 @receiver(post_save, sender=PersonalKnowledgeDocument)
 def ingest_personal_kb(sender, instance, created, **kwargs):
     if not created:
         return
-    vectors = ingest_document(
+    import logging
+    logger = logging.getLogger('ai_manager')
+    chunks = ingest_document(
         instance.file,
         instance.file_type,
         doc_metadata={
-            'document_id': instance.id,
+            'doc_id': instance.id,
             'title': instance.title,
             'file_type': instance.file_type
         },
         user_id=instance.owner.id,
         is_global=False
     )
-    upsert_vectors(vectors, collection='personal_kb') 
+    qdrant_vectors = []
+    skipped_chunks = 0
+    for c in chunks:
+        embeddings = c['metadata'].get('embeddings', [])
+        if not embeddings or not isinstance(embeddings, list) or len(embeddings) == 0 or embeddings[0] is None:
+            
+            skipped_chunks += 1
+            continue
+        qdrant_vectors.append({
+            'embedding': embeddings[0],
+            'chunk': c['chunk'],
+            'metadata': c['metadata']
+        })
+    if not qdrant_vectors:
+        return
+    upsert_vectors(qdrant_vectors, collection='personal_kb') 

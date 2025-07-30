@@ -1,5 +1,6 @@
 import logging
 import logging.config
+import openai
 from typing import List, Dict, Optional, Literal
 from .qdrant_client import search_vectors
 from .ingestion import embed_text
@@ -37,7 +38,17 @@ class Agent:
                 max_tokens=512,
                 temperature=0.0
             )
-            classification = response.choices[0].message.content.strip()
+            classification = response.choices[0].message.content.strip().lower()
+            # Extract only 'personal', 'global', or 'hybrid' from the output
+            if "personal" in classification:
+                classification = "personal"
+            elif "global" in classification:
+                classification = "global"
+            elif "hybrid" in classification:
+                classification = "hybrid"
+            else:
+                logger.warning(f"LLM intent classification output unrecognized: {classification}. Using fallback.")
+                raise ValueError('Unrecognized intent')
             logger.info(f"Intent classified as {classification}.")
             return classification
         except Exception as e:
@@ -70,30 +81,29 @@ class Agent:
         logger.info(f"Retrieving context for query: {query}, user_id: {user_id}, intent: {intent}, top_k: {top_k}")
         context = {}
         try:
-            query_embedding_openai = embed_text([query])[0]
-            query_embedding_bge = embed_text_bge([query])[0]
-            query_embedding_b2m5 = embed_text_b2m5([query])[0]
+            # For now, only use OpenAI embedding for retrieval (future-proof for hybrid)
+            query_embeddings = embed_text([query])
+            if len(query_embeddings[0]) >= 1:
+                query_embedding_openai = query_embeddings[0][0]
+            else:
+                raise RuntimeError('Failed to generate OpenAI query embedding.')
         except Exception as e:
             logger.error(f"Error embedding query: {e}")
             return context
         # Modular retrieval: try each KB independently, log and continue on error
         # Global KB retrieval
         try:
-            global_results_openai = search_vectors(query_embedding_openai, collection='global_kb', top=top_k)
-            global_results_bge = search_vectors(query_embedding_bge, collection='global_kb_bge', top=top_k)
-            global_results_b2m5 = search_vectors(query_embedding_b2m5, collection='global_kb_b2m5', top=top_k)
-            global_results = self.merge_results(global_results_openai, global_results_bge, global_results_b2m5)
+            # Only use OpenAI embedding for search (future: add hybrid search here)
+            global_results = search_vectors(query_embedding_openai, collection='global_kb', top=top_k)
             context['global'] = [r['payload']['chunk'] for r in global_results.get('result', []) if 'payload' in r and 'chunk' in r['payload']]
             logger.info(f"Retrieved {len(context['global'])} global KB chunks.")
         except Exception as e:
             logger.warning(f"Global KB retrieval failed: {e}")
         # Personal KB retrieval
-        if intent in (QueryIntent.PERSONAL, QueryIntent.HYBRID) and user_id:
+        if intent and user_id and intent.lower() in (QueryIntent.PERSONAL, QueryIntent.HYBRID):
             try:
-                personal_results_openai = search_vectors(query_embedding_openai, collection='personal_kb', top=top_k)
-                personal_results_bge = search_vectors(query_embedding_bge, collection='personal_kb_bge', top=top_k)
-                personal_results_b2m5 = search_vectors(query_embedding_b2m5, collection='personal_kb_b2m5', top=top_k)
-                personal_results = self.merge_results(personal_results_openai, personal_results_bge, personal_results_b2m5)
+                # Only use OpenAI embedding for search (future: add hybrid search here)
+                personal_results = search_vectors(query_embedding_openai, collection='personal_kb', top=top_k)
                 filtered = [r for r in personal_results.get('result', []) if r['payload'].get('user_id') == user_id]
                 context['personal'] = [r['payload']['chunk'] for r in filtered if 'payload' in r and 'chunk' in r['payload']]
                 logger.info(f"Retrieved {len(context['personal'])} personal KB chunks.")
@@ -152,7 +162,7 @@ class Agent:
                 "Return the passages in order of most to least relevant.\n\n"
                 f"User Query: {query}\n\n"
                 f"Passages:\n" + "\n".join([f"[{i+1}] {chunk}" for i, chunk in enumerate(chunks)]) +
-                "\n\nReturn the most relevant passages as a Python list of strings, in order."
+                "\n\nReturn the most relevant passages as a Python list of STRINGS, in order. DO NOT return indexes or numbers—return the FULL TEXT of each passage."
             )
             response = openai.chat.completions.create(
                 model="gpt-3.5-turbo",
@@ -163,16 +173,33 @@ class Agent:
             # Extract the Python list from the response
             import ast
             import re
-            match = re.search(r'\[.*\]', response.choices[0].message.content, re.DOTALL)
-            if match:
-                ranked_list = ast.literal_eval(match.group(0))
-                logger.info(f"LLM re-ranked chunks: {ranked_list}")
-                return ranked_list
-            else:
-                logger.warning("LLM response did not contain a Python list. Returning original order.")
+            llm_output = response.choices[0].message.content.strip()
+            # Try to extract a Python list from code block or raw text
+            if '```' in llm_output:
+                try:
+                    llm_output = re.search(r'```(?:python)?(.*?)```', llm_output, re.DOTALL).group(1).strip()
+                except Exception as e:
+                    logger.error(f"Error extracting code block from LLM output: {e}\nLLM output was: {llm_output}")
+                    return chunks
+            try:
+                match = re.search(r'\[.*?\]', llm_output, re.DOTALL)
+                if match:
+                    ranked_list = ast.literal_eval(match.group(0))
+                    if not isinstance(ranked_list, list):
+                        raise ValueError('LLM did not return a list')
+                    if not all(isinstance(item, str) for item in ranked_list):
+                        logger.warning(f"LLM reranker returned non-string items: {ranked_list}. Falling back to original order.")
+                        return chunks
+                    logger.info(f"LLM re-ranked chunks: {ranked_list}")
+                    return ranked_list
+                else:
+                    logger.warning("LLM response did not contain a Python list. Returning original order.")
+                    return chunks
+            except Exception as e:
+                logger.error(f"Error in LLM re-ranking: {e}\nLLM output was: {llm_output}")
                 return chunks
         except Exception as e:
-            logger.error(f"Error in LLM re-ranking: {e}")
+            logger.error(f"Error in LLM rerank outer block: {e}")
             return chunks
 
 # Global instance

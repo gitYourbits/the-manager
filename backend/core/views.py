@@ -11,7 +11,7 @@ from .models import PersonalKnowledgeDocument
 from .serializers import PersonalKnowledgeDocumentSerializer
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.parsers import JSONParser
+from rest_framework.parsers import JSONParser, MultiPartParser
 from .services.ingestion import embed_text
 from .services.qdrant_client import search_vectors
 from .services.ai_service import ai_service
@@ -19,6 +19,57 @@ from .models import Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
 
 User = get_user_model()
+
+from rest_framework.decorators import api_view, permission_classes, parser_classes
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser])
+def admin_global_kb_upload(request):
+    """Admin endpoint for uploading documents to the global KB."""
+    file_field = request.FILES.get('file')
+    file_type = request.data.get('file_type')
+    title = request.data.get('title', getattr(file_field, 'name', 'Untitled'))
+    if not file_field or not file_type:
+        return Response({'error': 'file and file_type are required.'}, status=400)
+    from .models import GlobalKnowledgeDocument
+    from .services.ingestion import ingest_document
+    from .services.qdrant_client import upsert_vectors
+    try:
+        # Save document to DB first to get PK
+        doc = GlobalKnowledgeDocument.objects.create(title=title, file=file_field, file_type=file_type)
+        doc_metadata = {'doc_id': str(doc.id)}
+        # Ingest with is_global=True and doc_id in metadata
+        chunks = ingest_document(doc.file, file_type=file_type, doc_metadata=doc_metadata, is_global=True)
+        # Upsert chunks to Qdrant with doc_id in payload
+        import logging
+        logger = logging.getLogger('ai_manager')
+        qdrant_vectors = []
+        skipped_chunks = 0
+        for c in chunks:
+            embeddings = c['metadata'].get('embeddings', [])
+            if not embeddings or not isinstance(embeddings, list) or len(embeddings) == 0 or embeddings[0] is None:
+                logger.error(f"Skipping chunk due to missing or invalid OpenAI embedding: {c}")
+                skipped_chunks += 1
+                continue
+            qdrant_vectors.append({
+                'embedding': embeddings[0],  # OpenAI embedding for default collection
+                'chunk': c['chunk'],
+                'metadata': c['metadata']
+            })
+        if not qdrant_vectors:
+            logger.error("No valid chunks with OpenAI embeddings to upsert to Qdrant.")
+            return Response({'error': 'No valid chunks with OpenAI embeddings to upload.'}, status=500)
+        upsert_vectors(qdrant_vectors, collection='global_kb')
+        result = {'status': 'success', 'num_chunks': len(qdrant_vectors), 'doc_id': doc.id}
+        if skipped_chunks:
+            result['skipped_chunks'] = skipped_chunks
+            logger.warning(f"Skipped {skipped_chunks} chunks due to missing embeddings.")
+        return Response(result)
+    except Exception as e:
+        import logging
+        logging.getLogger('ai_manager').exception(f"Upload failed: {e}")
+        return Response({'error': str(e)}, status=500)
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()

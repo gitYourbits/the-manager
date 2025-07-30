@@ -79,7 +79,7 @@ def render():
                         with st.spinner("Authenticating..."):
                             try:
                                 response = requests.post(
-                                    "http://localhost:8000/api/auth/login/",
+                                    "http://localhost:8000/api/login/",
                                     json={"email": email, "password": password}
                                 )
                                 if response.status_code == 200:
@@ -145,7 +145,7 @@ def render():
                         with st.spinner("Creating your account..."):
                             try:
                                 response = requests.post(
-                                    "http://localhost:8000/api/auth/register/",
+                                    "http://localhost:8000/api/register/",
                                     json={
                                         "email": email.strip(),
                                         "username": username.strip(),

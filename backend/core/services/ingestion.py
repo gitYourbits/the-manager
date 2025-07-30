@@ -4,6 +4,8 @@ from typing import List, Dict
 import tiktoken
 from PyPDF2 import PdfReader
 import docx
+import torch
+from transformers import AutoTokenizer, AutoModel
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 openai.api_key = OPENAI_API_KEY
@@ -27,12 +29,18 @@ def chunk_text_token_overlap(text: str, max_tokens: int = 512, overlap: int = 64
     return chunks
 
 # --- Embedding utility ---
-def embed_text(texts: List[str], models: List[str] = ['text-embedding-3-small', 'bge-base-en-v1.5', 'b2m5']) -> List[List[List[float]]]:
+def embed_text(texts: List[str], models: List[str] = ['text-embedding-3-small', 'BAAI/bge-base-en-v1.5', 'intfloat/multilingual-e5-base']) -> List[List[List[float]]]:
     embeddings = []
     for model in models:
         if model.startswith('text-embedding'):
             response = openai.embeddings.create(input=texts, model=model)
-            embeddings.append([d.embedding for d in response.data])
+            import logging
+            
+            try:
+                embeddings.append([d.embedding for d in response.data])
+            except Exception as e:
+                
+                raise
         else:
             device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             tokenizer = AutoTokenizer.from_pretrained(model)
@@ -41,7 +49,13 @@ def embed_text(texts: List[str], models: List[str] = ['text-embedding-3-small', 
             inputs = tokenizer(texts, return_tensors='pt', padding=True, truncation=True)
             with torch.no_grad():
                 outputs = model(**inputs.to(device))
-                embeddings.append(outputs.pooler_output.detach().cpu().numpy().tolist())
+                import logging
+                
+                try:
+                    embeddings.append(outputs.pooler_output.detach().cpu().numpy().tolist())
+                except Exception as e:
+                    
+                    raise
     return list(map(list, zip(*embeddings)))
 
 # --- File extraction utilities ---
@@ -73,6 +87,9 @@ def ingest_document(file_field, file_type: str, doc_metadata: Dict = None, user_
     chunk_texts = [c['chunk'] for c in chunks]
     embeddings = embed_text(chunk_texts)
     results = []
+    doc_id = None
+    if doc_metadata and 'doc_id' in doc_metadata:
+        doc_id = str(doc_metadata['doc_id'])
     for chunk, embedding in zip(chunks, embeddings):
         meta = {
             **doc_metadata,
@@ -82,6 +99,8 @@ def ingest_document(file_field, file_type: str, doc_metadata: Dict = None, user_
             'is_global': is_global,
             'embeddings': embedding
         }
+        if doc_id:
+            meta['doc_id'] = doc_id
         if user_id is not None:
             meta['user_id'] = user_id
         results.append({

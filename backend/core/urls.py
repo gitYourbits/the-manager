@@ -1,7 +1,9 @@
 from django.urls import path
+from .views import admin_global_kb_upload
 from .views import RegisterView, LoginView, UserProfileView, GlobalKnowledgeDocumentListCreateView, GlobalKnowledgeDocumentRetrieveDestroyView, PersonalKnowledgeDocumentListCreateView, PersonalKnowledgeDocumentRetrieveDestroyView, global_kb_semantic_search, personal_kb_semantic_search, suggest_consultancy, ConversationListCreateView, ConversationDetailView, MessageCreateView
 
 urlpatterns = [
+    path('global_kb_upload/', admin_global_kb_upload, name='admin_global_kb_upload'),
     path('register/', RegisterView.as_view(), name='register'),
     path('login/', LoginView.as_view(), name='login'),
     path('profile/', UserProfileView.as_view(), name='profile'),
