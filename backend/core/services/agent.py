@@ -159,10 +159,12 @@ class Agent:
             prompt = (
                 "You are an expert assistant. Given the user query and a list of context passages, "
                 "rank the passages by their relevance to the query. "
-                "Return the passages in order of most to least relevant.\n\n"
+                "Return ONLY a valid Python list of the most relevant passages (full text, not indexes), in order. "
+                "Do NOT include any explanation, summary, or text before or after the list. "
+                "The response MUST start with [ and end with ].\n\n"
                 f"User Query: {query}\n\n"
                 f"Passages:\n" + "\n".join([f"[{i+1}] {chunk}" for i, chunk in enumerate(chunks)]) +
-                "\n\nReturn the most relevant passages as a Python list of STRINGS, in order. DO NOT return indexes or numbers—return the FULL TEXT of each passage."
+                "\n\nReturn ONLY the Python list."
             )
             response = openai.chat.completions.create(
                 model="gpt-3.5-turbo",
@@ -193,7 +195,7 @@ class Agent:
                     logger.info(f"LLM re-ranked chunks: {ranked_list}")
                     return ranked_list
                 else:
-                    logger.warning("LLM response did not contain a Python list. Returning original order.")
+                    logger.warning(f"LLM response did not contain a valid Python list. LLM output was: {llm_output!r}. Returning original order.")
                     return chunks
             except Exception as e:
                 logger.error(f"Error in LLM re-ranking: {e}\nLLM output was: {llm_output}")
