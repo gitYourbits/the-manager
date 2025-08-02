@@ -31,7 +31,7 @@ def render():
         if create_action_button("New Conversation", "➕", "new_conv"):
             try:
                 response = requests.post(
-                    "http://localhost:8000/api/chat/conversations/",
+                    "https://the-manager-emyz.onrender.com/api/chat/conversations/",
                     headers={"Authorization": f"Bearer {st.session_state.token}"},
                     json={"title": f"Chat {datetime.now().strftime('%H:%M')}"}
                 )
@@ -47,7 +47,7 @@ def render():
         # Load existing conversations
         try:
             response = requests.get(
-                "http://localhost:8000/api/chat/conversations/",
+                "https://the-manager-emyz.onrender.com/api/chat/conversations/",
                 headers={"Authorization": f"Bearer {st.session_state.token}"}
             )
             if response.status_code == 200:
@@ -120,7 +120,7 @@ def render():
                 try:
                     # Send message to backend
                     response = requests.post(
-                        "http://localhost:8000/api/chat/messages/",
+                        "https://the-manager-emyz.onrender.com/api/chat/messages/",
                         headers={"Authorization": f"Bearer {st.session_state.token}"},
                         json={
                             "conversation": st.session_state.current_conversation['id'],
@@ -131,7 +131,7 @@ def render():
                     if response.status_code == 201:
                         # Reload conversation to get updated messages
                         conv_response = requests.get(
-                            f"http://localhost:8000/api/chat/conversations/{st.session_state.current_conversation['id']}/",
+                            f"https://the-manager-emyz.onrender.com/api/chat/conversations/{st.session_state.current_conversation['id']}/",
                             headers={"Authorization": f"Bearer {st.session_state.token}"}
                         )
                         if conv_response.status_code == 200:
@@ -162,7 +162,7 @@ def render():
             if create_action_button("Start New Conversation", "🚀", "start_new"):
                 try:
                     response = requests.post(
-                        "http://localhost:8000/api/chat/conversations/",
+                        "https://the-manager-emyz.onrender.com/api/chat/conversations/",
                         headers={"Authorization": f"Bearer {st.session_state.token}"},
                         json={"title": f"Chat {datetime.now().strftime('%H:%M')}"}
                     )

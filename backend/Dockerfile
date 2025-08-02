@@ -25,8 +25,11 @@ COPY . .
 # Create media directory
 RUN mkdir -p /app/media
 
-# Expose port
-EXPOSE 8000
+# Collect static files (safe to run even if not using Whitenoise)
+RUN python manage.py collectstatic --noinput || true
 
-# Default command
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"] 
+# Expose port (Render default is 10000)
+EXPOSE 10000
+
+# Start with Gunicorn for production
+CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:10000"]

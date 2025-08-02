@@ -27,7 +27,11 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'changeme')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "https://the-manager-emyz.onrender.com",
+    "localhost",
+    "127.0.0.1",
+]
 
 
 # Application definition
@@ -133,7 +137,11 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 }
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS
+CORS_ALLOWED_ORIGINS = [
+    "https://the-manager.streamlit.app",
+    # Add custom frontend domains if any
+]
 AUTH_USER_MODEL = 'core.User'
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
