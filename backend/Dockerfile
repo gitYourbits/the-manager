@@ -32,4 +32,4 @@ RUN python manage.py collectstatic --noinput || true
 EXPOSE 10000
 
 # Start with Gunicorn for production
-CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:10000"]
+CMD ["gunicorn", "manager_backend.wsgi:application", "--bind", "0.0.0.0:10000"]
