@@ -32,4 +32,5 @@ RUN python manage.py collectstatic --noinput || true
 EXPOSE 8080
 
 # Use Gunicorn on correct port
-CMD ["gunicorn", "manager_backend.wsgi:application", "--bind", "0.0.0.0:8080"]
+CMD ["sh", "-c", "echo Starting app && gunicorn manager_backend.wsgi:application --bind 0.0.0.0:8080"]
+
