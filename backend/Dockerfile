@@ -25,11 +25,11 @@ COPY . .
 # Create media directory
 RUN mkdir -p /app/media
 
-# Collect static files (safe to run even if not using Whitenoise)
+# Collect static files
 RUN python manage.py collectstatic --noinput || true
 
-# Expose port (Render default is 10000)
-EXPOSE 10000
+# Expose correct port for Cloud Run
+EXPOSE 8080
 
-# Start with Gunicorn for production
-CMD ["python", "manage.py", "runserver", "0.0.0.0:10000"]
+# Use Gunicorn on correct port
+CMD ["gunicorn", "manager_backend.wsgi:application", "--bind", "0.0.0.0:8080"]
