@@ -28,7 +28,7 @@ if uploaded_file and file_type and token:
             headers = {'Authorization': f'Bearer {token}'}
             try:
                 response = requests.post(
-                    'https://the-manager-emyz.onrender.com/api/global_kb_upload/',
+                    'http://34.60.140.141:8000/api/global_kb_upload/',
                     files=files,
                     data=data,
                     headers=headers

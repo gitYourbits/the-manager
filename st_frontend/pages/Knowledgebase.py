@@ -53,7 +53,7 @@ def render():
                             'file_type': uploaded_file.name.split('.')[-1]
                         }
                         response = requests.post(
-                            "https://the-manager-emyz.onrender.com/api/personal-kb/",
+                            "http://34.60.140.141:8000/api/personal-kb/",
                             headers={"Authorization": f"Bearer {st.session_state.token}"},
                             files=files,
                             data=data
@@ -71,7 +71,7 @@ def render():
         
         try:
             response = requests.get(
-                "https://the-manager-emyz.onrender.com/api/personal-kb/",
+                "http://34.60.140.141:8000/api/personal-kb/",
                 headers={"Authorization": f"Bearer {st.session_state.token}"}
             )
             if response.status_code == 200:
@@ -93,7 +93,7 @@ def render():
                             if create_action_button("Delete", "🗑️", f"del_personal_{doc['id']}"):
                                 try:
                                     del_response = requests.delete(
-                                        f"https://the-manager-emyz.onrender.com/api/personal-kb/{doc['id']}/",
+                                        f"http://34.60.140.141:8000/api/personal-kb/{doc['id']}/",
                                         headers={"Authorization": f"Bearer {st.session_state.token}"}
                                     )
                                     if del_response.status_code == 204:
@@ -130,7 +130,7 @@ def render():
                 try:
                     with st.spinner("Searching your knowledgebase..."):
                         response = requests.post(
-                            "https://the-manager-emyz.onrender.com/api/personal-kb/search/",
+                            "http://34.60.140.141:8000/api/personal-kb/search/",
                             headers={"Authorization": f"Bearer {st.session_state.token}"},
                             json={"query": search_query}
                         )
@@ -163,7 +163,7 @@ def render():
         # List global documents (read-only for regular users)
         try:
             response = requests.get(
-                "https://the-manager-emyz.onrender.com/api/global-kb/",
+                "http://34.60.140.141:8000/api/global-kb/",
                 headers={"Authorization": f"Bearer {st.session_state.token}"}
             )
             if response.status_code == 200:
@@ -208,7 +208,7 @@ def render():
                 try:
                     with st.spinner("Searching global knowledgebase..."):
                         response = requests.post(
-                            "https://the-manager-emyz.onrender.com/api/global-kb/search/",
+                            "http://34.60.140.141:8000/api/global-kb/search/",
                             json={"query": global_search_query}
                         )
                         if response.status_code == 200:

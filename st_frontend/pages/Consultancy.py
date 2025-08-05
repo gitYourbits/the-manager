@@ -32,7 +32,7 @@ def render():
             with st.spinner("🤖 Analyzing your data and generating recommendations..."):
                 try:
                     response = requests.post(
-                        "https://the-manager-emyz.onrender.com/api/consultancy/suggest/",
+                        "http://34.60.140.141:8000/api/consultancy/suggest/",
                         headers={"Authorization": f"Bearer {st.session_state.token}"}
                     )
                     if response.status_code == 200:

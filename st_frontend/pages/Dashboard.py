@@ -34,7 +34,7 @@ def render():
         # Personal documents count
         try:
             kb_response = requests.get(
-                "https://the-manager-emyz.onrender.com/api/personal-kb/",
+                "http://34.60.140.141:8000/api/personal-kb/",
                 headers={"Authorization": f"Bearer {st.session_state.token}"}
             )
             if kb_response.status_code == 200:
@@ -47,7 +47,7 @@ def render():
         # Conversations count
         try:
             chat_response = requests.get(
-                "https://the-manager-emyz.onrender.com/api/chat/conversations/",
+                "http://34.60.140.141:8000/api/chat/conversations/",
                 headers={"Authorization": f"Bearer {st.session_state.token}"}
             )
             if chat_response.status_code == 200:
@@ -98,7 +98,7 @@ def render():
         try:
             # Recent documents
             kb_response = requests.get(
-                "https://the-manager-emyz.onrender.com/api/personal-kb/",
+                "http://34.60.140.141:8000/api/personal-kb/",
                 headers={"Authorization": f"Bearer {st.session_state.token}"}
             )
             if kb_response.status_code == 200:
@@ -126,7 +126,7 @@ def render():
         try:
             # Recent conversations
             chat_response = requests.get(
-                "https://the-manager-emyz.onrender.com/api/chat/conversations/",
+                "http://34.60.140.141:8000/api/chat/conversations/",
                 headers={"Authorization": f"Bearer {st.session_state.token}"}
             )
             if chat_response.status_code == 200:
