@@ -5,6 +5,7 @@ djangorestframework-simplejwt
 django-cors-headers
 python-dotenv
 gunicorn
+whitenoise==6.6.0
 
 # AI and ML dependencies
 openai
