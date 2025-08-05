@@ -15,8 +15,9 @@ RUN apt-get update \
         libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Create necessary directories
-RUN mkdir -p /app/logs /app/media /app/static
+# Create necessary directories with proper permissions
+RUN mkdir -p /app/logs /app/media /app/static && \
+    chmod 755 /app/logs /app/media /app/static
 
 # Install Python dependencies
 COPY requirements.txt .
@@ -25,11 +26,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
-# Create logs directory and set permissions
-RUN mkdir -p /app/logs && chmod 755 /app/logs
-
 # Collect static files
-RUN python manage.py collectstatic --noinput || true
+# RUN python manage.py collectstatic --noinput || true
 
 # Expose port
 EXPOSE 8000

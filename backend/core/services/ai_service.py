@@ -9,7 +9,26 @@ import logging.config
 # Load logging configuration
 LOGGING_CONF_PATH = os.path.join(os.path.dirname(__file__), '../../logging.conf')
 if os.path.exists(LOGGING_CONF_PATH):
-    logging.config.fileConfig(LOGGING_CONF_PATH, disable_existing_loggers=False)
+    try:
+        logging.config.fileConfig(LOGGING_CONF_PATH, disable_existing_loggers=False)
+    except Exception as e:
+        # Fallback to basic logging if config fails
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s %(levelname)s %(name)s %(message)s',
+            handlers=[
+                logging.StreamHandler(),
+                logging.FileHandler('/app/logs/ai_manager.log', mode='a') if os.path.exists('/app/logs') else logging.StreamHandler()
+            ]
+        )
+else:
+    # Fallback to basic logging if config file doesn't exist
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(name)s %(message)s',
+        handlers=[logging.StreamHandler()]
+    )
+
 logger = logging.getLogger('ai_manager')
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')

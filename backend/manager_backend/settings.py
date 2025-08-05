@@ -18,6 +18,21 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
+# Ensure necessary directories exist
+def ensure_directories():
+    """Create necessary directories if they don't exist."""
+    directories = [
+        BASE_DIR / 'logs',
+        BASE_DIR / 'media',
+        BASE_DIR / 'static',
+    ]
+    
+    for directory in directories:
+        directory.mkdir(mode=0o755, exist_ok=True)
+
+# Create directories during settings import
+ensure_directories()
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
