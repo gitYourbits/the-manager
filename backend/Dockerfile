@@ -15,6 +15,9 @@ RUN apt-get update \
         libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Create necessary directories
+RUN mkdir -p /app/logs /app/media /app/static
+
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -22,15 +25,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
-# Create media directory
-RUN mkdir -p /app/media
+# Create logs directory and set permissions
+RUN mkdir -p /app/logs && chmod 755 /app/logs
 
 # Collect static files
 RUN python manage.py collectstatic --noinput || true
 
-# Expose correct port for Cloud Run
-EXPOSE 8080
+# Expose port
+EXPOSE 8000
 
-# Use Gunicorn on correct port
-CMD ["sh", "-c", "echo Starting app && gunicorn manager_backend.wsgi:application --bind 0.0.0.0:8080"]
+# Use Gunicorn with standard settings for Compute Engine
+CMD ["gunicorn", "manager_backend.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120"]
 
