@@ -27,29 +27,48 @@ from rest_framework.decorators import api_view, permission_classes, parser_class
 @parser_classes([MultiPartParser])
 def admin_global_kb_upload(request):
     """Admin endpoint for uploading documents to the global KB."""
-    file_field = request.FILES.get('file')
-    file_type = request.data.get('file_type')
-    title = request.data.get('title', getattr(file_field, 'name', 'Untitled'))
-    if not file_field or not file_type:
-        return Response({'error': 'file and file_type are required.'}, status=400)
-    from .models import GlobalKnowledgeDocument
-    from .services.ingestion import ingest_document
-    from .services.qdrant_client import upsert_vectors
+    import logging
+    logger = logging.getLogger('ai_manager')
+    
     try:
+        logger.info("Starting global KB upload process")
+        
+        # Validate request data
+        file_field = request.FILES.get('file')
+        file_type = request.data.get('file_type')
+        title = request.data.get('title', getattr(file_field, 'name', 'Untitled'))
+        
+        logger.info(f"Upload request - file: {file_field}, file_type: {file_type}, title: {title}")
+        
+        if not file_field or not file_type:
+            logger.error("Missing required fields: file or file_type")
+            return Response({'error': 'file and file_type are required.'}, status=400)
+        
+        from .models import GlobalKnowledgeDocument
+        from .services.ingestion import ingest_document
+        from .services.qdrant_client import upsert_vectors
+        
         # Save document to DB first to get PK
+        logger.info("Creating GlobalKnowledgeDocument in database")
         doc = GlobalKnowledgeDocument.objects.create(title=title, file=file_field, file_type=file_type)
         doc_metadata = {'doc_id': str(doc.id)}
+        
+        logger.info(f"Document saved with ID: {doc.id}")
+        
         # Ingest with is_global=True and doc_id in metadata
+        logger.info("Starting document ingestion")
         chunks = ingest_document(doc.file, file_type=file_type, doc_metadata=doc_metadata, is_global=True)
+        
+        logger.info(f"Ingestion completed, got {len(chunks)} chunks")
+        
         # Upsert chunks to Qdrant with doc_id in payload
-        import logging
-        logger = logging.getLogger('ai_manager')
         qdrant_vectors = []
         skipped_chunks = 0
-        for c in chunks:
+        
+        for i, c in enumerate(chunks):
             embeddings = c['metadata'].get('embeddings', [])
             if not embeddings or not isinstance(embeddings, list) or len(embeddings) == 0 or embeddings[0] is None:
-                logger.error(f"Skipping chunk due to missing or invalid OpenAI embedding: {c}")
+                logger.error(f"Skipping chunk {i} due to missing or invalid OpenAI embedding: {c}")
                 skipped_chunks += 1
                 continue
             qdrant_vectors.append({
@@ -57,18 +76,27 @@ def admin_global_kb_upload(request):
                 'chunk': c['chunk'],
                 'metadata': c['metadata']
             })
+        
+        logger.info(f"Prepared {len(qdrant_vectors)} vectors for Qdrant, skipped {skipped_chunks}")
+        
         if not qdrant_vectors:
             logger.error("No valid chunks with OpenAI embeddings to upsert to Qdrant.")
             return Response({'error': 'No valid chunks with OpenAI embeddings to upload.'}, status=500)
+        
+        # Upsert to Qdrant
+        logger.info("Upserting vectors to Qdrant")
         upsert_vectors(qdrant_vectors, collection='global_kb')
+        
         result = {'status': 'success', 'num_chunks': len(qdrant_vectors), 'doc_id': doc.id}
         if skipped_chunks:
             result['skipped_chunks'] = skipped_chunks
             logger.warning(f"Skipped {skipped_chunks} chunks due to missing embeddings.")
+        
+        logger.info(f"Upload completed successfully: {result}")
         return Response(result)
+        
     except Exception as e:
-        import logging
-        logging.getLogger('ai_manager').exception(f"Upload failed: {e}")
+        logger.exception(f"Upload failed with exception: {e}")
         return Response({'error': str(e)}, status=500)
 
 class RegisterView(generics.CreateAPIView):

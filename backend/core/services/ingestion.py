@@ -29,33 +29,35 @@ def chunk_text_token_overlap(text: str, max_tokens: int = 512, overlap: int = 64
     return chunks
 
 # --- Embedding utility ---
-def embed_text(texts: List[str], models: List[str] = ['text-embedding-3-small', 'BAAI/bge-base-en-v1.5', 'intfloat/multilingual-e5-base']) -> List[List[List[float]]]:
+def embed_text(texts: List[str], models: List[str] = None) -> List[List[List[float]]]:
+    """
+    Generate embeddings using OpenAI's text-embedding-3-small model.
+    For production, we use only OpenAI embeddings to avoid memory issues.
+    """
+    if models is None:
+        models = ['text-embedding-3-small']  # Use only OpenAI for production
+    
     embeddings = []
     for model in models:
         if model.startswith('text-embedding'):
-            response = openai.embeddings.create(input=texts, model=model)
-            import logging
-            
             try:
+                response = openai.embeddings.create(input=texts, model=model)
                 embeddings.append([d.embedding for d in response.data])
             except Exception as e:
-                
+                import logging
+                logger = logging.getLogger('ai_manager')
+                logger.error(f"OpenAI embedding failed: {e}")
                 raise
         else:
-            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-            tokenizer = AutoTokenizer.from_pretrained(model)
-            model = AutoModel.from_pretrained(model)
-            model.to(device)
-            inputs = tokenizer(texts, return_tensors='pt', padding=True, truncation=True)
-            with torch.no_grad():
-                outputs = model(**inputs.to(device))
-                import logging
-                
-                try:
-                    embeddings.append(outputs.pooler_output.detach().cpu().numpy().tolist())
-                except Exception as e:
-                    
-                    raise
+            # For now, skip non-OpenAI models to avoid memory issues
+            import logging
+            logger = logging.getLogger('ai_manager')
+            logger.warning(f"Skipping non-OpenAI model: {model}")
+            continue
+    
+    if not embeddings:
+        raise ValueError("No embeddings generated")
+    
     return list(map(list, zip(*embeddings)))
 
 # --- File extraction utilities ---

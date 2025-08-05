@@ -31,13 +31,24 @@ if uploaded_file and file_type and token:
                     'http://34.60.140.141:8000/api/global_kb_upload/',
                     files=files,
                     data=data,
-                    headers=headers
+                    headers=headers,
+                    timeout=300  # 5 minute timeout
                 )
                 if response.status_code == 200:
-                    st.success(f"Upload successful! Chunks created: {response.json().get('num_chunks')}")
+                    result = response.json()
+                    st.success(f"Upload successful! Chunks created: {result.get('num_chunks')}")
+                    if result.get('skipped_chunks'):
+                        st.warning(f"Skipped {result.get('skipped_chunks')} chunks due to embedding issues")
                 else:
-                    st.error(f"Upload failed: {response.json().get('error', response.text)}")
+                    try:
+                        error_data = response.json()
+                        st.error(f"Upload failed: {error_data.get('error', 'Unknown error')}")
+                    except:
+                        st.error(f"Upload failed: {response.text}")
+            except requests.exceptions.Timeout:
+                st.error("Upload timed out. The file might be too large or the server is busy.")
             except Exception as e:
                 st.error(f"Request failed: {e}")
+                st.error("Check server logs for more details.")
 else:
     st.info('Please select a file and ensure you are logged in.')
