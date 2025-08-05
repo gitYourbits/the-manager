@@ -28,6 +28,7 @@ media/
 
 # Static files (if they exist)
 static/
+staticfiles/
 
 # Logs (if they exist)
 *.log

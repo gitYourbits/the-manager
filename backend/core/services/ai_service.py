@@ -18,7 +18,7 @@ if os.path.exists(LOGGING_CONF_PATH):
             format='%(asctime)s %(levelname)s %(name)s %(message)s',
             handlers=[
                 logging.StreamHandler(),
-                logging.FileHandler('/app/logs/ai_manager.log', mode='a') if os.path.exists('/app/logs') else logging.StreamHandler()
+                logging.FileHandler('logs/ai_manager.log', mode='a') if os.path.exists('logs') else logging.StreamHandler()
             ]
         )
 else:
