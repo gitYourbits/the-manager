@@ -37,7 +37,6 @@
   - B2M5
 - Query Qdrant for each embedding across all relevant KBs.
 - Merge and deduplicate results by chunk.
-- Rerank with LLM for final context selection.
 
 ### **KB Targeting Logic:**
 | Query Intent | KBs Targeted         | Filtered by user_id? | Why?                                 |
@@ -67,8 +66,7 @@ flowchart TD
     D1 & D2 --> E1[Merge + Deduplicate]
     D3 --> E2[Deduplicate]
     D4 & D5 --> E3[Merge + Deduplicate]
-    E1 & E2 & E3 --> F[LLM Rerank]
-    F --> G[Build Prompt]
+    E1 & E2 & E3 --> G[Build Prompt]
     G --> H[LLM Completion]
     H --> I[Response]
 ```
@@ -86,7 +84,6 @@ flowchart TD
 - Classify query intent (LLM-based, fallback to keywords).
 - For each embedding model, search all relevant KBs.
 - Merge/deduplicate results.
-- Rerank with LLM.
 - Build prompt with clear context source separation.
 
 ### Security & Privacy
@@ -108,7 +105,7 @@ flowchart TD
 - Frontend at `localhost:8501`, backend at `localhost:8000`
 
 ### Test Cases & Quality
-- Test classification, retrieval, reranking, and ingestion.
+- Test classification, retrieval, and ingestion.
 - Example:
   - `test_classify_intent`: Ensures correct intent detection.
   - `test_retrieve_context`: Ensures correct KB targeting and context retrieval.

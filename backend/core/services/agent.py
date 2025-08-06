@@ -75,7 +75,6 @@ class Agent:
     def retrieve_context(self, query: str, user_id: Optional[int] = None, intent: Optional[str] = None, top_k: int = 3) -> Dict[str, List[str]]:
         """
         Retrieve context for a query. Global KB is always included for managerial insights.
-        Always use LLM-based re-ranking.
         Returns a dict with 'personal' and 'global' keys.
         """
         logger.info(f"Retrieving context for query: {query}, user_id: {user_id}, intent: {intent}, top_k: {top_k}")
@@ -109,13 +108,6 @@ class Agent:
                 logger.info(f"Retrieved {len(context['personal'])} personal KB chunks.")
             except Exception as e:
                 logger.warning(f"Personal KB retrieval failed: {e}")
-        # LLM-based re-ranking
-        if context.get('global') or context.get('personal'):
-            logger.info("Re-ranking context chunks using LLM.")
-            chunks = context.get('global', []) + context.get('personal', [])
-            ranked_chunks = self.llm_rerank(query, chunks)
-            context['global'] = [chunk for chunk in ranked_chunks if chunk in context.get('global', [])]
-            context['personal'] = [chunk for chunk in ranked_chunks if chunk in context.get('personal', [])]
         return context
 
     def merge_results(self, result1, result2, result3):
@@ -150,60 +142,7 @@ class Agent:
         logger.debug(f"Full prompt sent to LLM: {final_prompt}")
         return final_prompt
 
-    def llm_rerank(self, query: str, chunks: list) -> list:
-        """
-        Use LLM to re-rank chunks by relevance to the query. Returns sorted list of chunks.
-        """
-        import openai
-        logger.info(f"LLM re-ranking {len(chunks)} chunks for query: {query}")
-        try:
-            prompt = (
-                "You are an expert assistant. Given the user query and a list of context passages, "
-                "rank the passages by their relevance to the query. "
-                "Return ONLY a valid Python list of the most relevant passages (full text, not indexes), in order. "
-                "Do NOT include any explanation, summary, or text before or after the list. "
-                "The response MUST start with [ and end with ].\n\n"
-                f"User Query: {query}\n\n"
-                f"Passages:\n" + "\n".join([f"[{i+1}] {chunk}" for i, chunk in enumerate(chunks)]) +
-                "\n\nReturn ONLY the Python list."
-            )
-            response = openai.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": prompt}],
-                max_tokens=512,
-                temperature=0.0
-            )
-            # Extract the Python list from the response
-            import ast
-            import re
-            llm_output = response.choices[0].message.content.strip()
-            # Try to extract a Python list from code block or raw text
-            if '```' in llm_output:
-                try:
-                    llm_output = re.search(r'```(?:python)?(.*?)```', llm_output, re.DOTALL).group(1).strip()
-                except Exception as e:
-                    logger.error(f"Error extracting code block from LLM output: {e}\nLLM output was: {llm_output}")
-                    return chunks
-            try:
-                match = re.search(r'\[.*?\]', llm_output, re.DOTALL)
-                if match:
-                    ranked_list = ast.literal_eval(match.group(0))
-                    if not isinstance(ranked_list, list):
-                        raise ValueError('LLM did not return a list')
-                    if not all(isinstance(item, str) for item in ranked_list):
-                        logger.warning(f"LLM reranker returned non-string items: {ranked_list}. Falling back to original order.")
-                        return chunks
-                    logger.info(f"LLM re-ranked chunks: {ranked_list}")
-                    return ranked_list
-                else:
-                    logger.warning(f"LLM response did not contain a valid Python list. LLM output was: {llm_output!r}. Returning original order.")
-                    return chunks
-            except Exception as e:
-                logger.error(f"Error in LLM re-ranking: {e}\nLLM output was: {llm_output}")
-                return chunks
-        except Exception as e:
-            logger.error(f"Error in LLM rerank outer block: {e}")
-            return chunks
+
 
 # Global instance
 agent = Agent()
